@@ -1,0 +1,119 @@
+import pandas as pd
+import math
+
+def xlsx_to_csv_pd(xls,csv):
+    data_xls = pd.read_excel(xls,index_col=0)
+    data_xls.to_csv(csv,index=False)
+  
+def covert_csv_to_excel(csv,excel):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    with open(csv) as f:
+        reader = csv.reader(f, delimiter=',')
+        for row in reader:
+            ws.append(row)
+
+    wb.save(excel)
+def merge_cell(xlsx,csv,range):
+    wb = openpyxl.load_workbook(xlsx)
+    ws = wb.active
+    ws.merge_cells(range)
+    wb.save(csv)
+
+
+Budget = 10000 # 總預算 (限定整數, 每1000+)
+LoopBudget = 500 # 每組迴圈預算
+Commission = 45 # 設定傭金的金額
+InitialAccountBudget = 1000 # 初始帳戶的基本資金 or 2*LoopBudget
+AverageLotsPerLoop = 0.25 # 每組迴圈平均手數/周數
+SubAccountNumbers = 20 # 子帳號數目
+WeeklyNumbers = 160 # 左側總計週數
+WeeklyLots = 0 # 每週手數
+# AccumulationLots = 0  # 累積手數
+AutoAddLoop = True # 複利 or 單利
+Basic_add_roundamount=LoopBudget/Commission
+Basic_add_roundamount=math.ceil(Basic_add_roundamount)
+titlearr = ['帳戶編號','累積資金', '每週總手數', '累積手數','新增迴圈數', '累積500美金加開一迴圈']
+titlearr2 =['週數','','','','','']
+for i in range(1, SubAccountNumbers + 1):
+    titlearr.insert(0 + i, '帳戶{index}'.format(index = i))
+for i in range(1, SubAccountNumbers + 1):
+    titlearr2.insert(0 + i, '手數')
+Total_lots=0
+data=[]
+
+data.append(titlearr2)
+
+Basic_lots=Budget//LoopBudget*AverageLotsPerLoop
+Basic_account_number=Budget//InitialAccountBudget
+
+#===原始帳戶手數===
+Temp_lost=[InitialAccountBudget//LoopBudget*AverageLotsPerLoop]*Basic_account_number
+for i in range(len(Temp_lost),SubAccountNumbers):
+    Temp_lost.append(0)
+
+nextwrite_=0
+write_of_newbasic=0
+
+
+for week in range(1,WeeklyNumbers+1):
+     temp=[]
+     Total_lots+=Basic_lots
+     if Total_lots>Basic_add_roundamount:
+        
+         temp.append(week)
+         for i in Temp_lost:
+             temp.append(i)
+         temp.append(Budget)
+         temp.append(Basic_lots)
+         temp.append(Total_lots)
+         
+  
+         add_round=Total_lots//Basic_add_roundamount
+         Total_lots=Total_lots-add_round*Basic_add_roundamount
+         Basic_lots=Basic_lots+add_round*AverageLotsPerLoop
+         
+         if add_round:
+             add_in_acc=[]
+             temp.append(add_round)
+             for i in range(0,int(add_round)):
+                 min_basic_index=Temp_lost.index(min(Temp_lost))
+                 min_basic=Temp_lost[min_basic_index]
+                 Temp_lost[min_basic_index]=min_basic+AverageLotsPerLoop
+                 add_in_acc.append(min_basic_index+1)
+             if add_in_acc:
+                 text=''
+                 for j in add_in_acc:
+                     if len(text)>2:
+                         text=text+' | '
+                     text=text+'帳戶 '+"{:<3}".format(str(j))+' 加迴圈'
+                 temp.append(text)
+         
+         Budget=Budget+LoopBudget
+         nextwrite_=week+1
+         Total_lots=round(Total_lots,2)
+         print(nextwrite_,'  ',Basic_lots,'  ',Budget,'  ',Total_lots,' ',add_round)
+         
+     elif week==nextwrite_:
+         temp.append(week)
+         for i in Temp_lost:
+             temp.append(i)
+         temp.append(Budget)
+         temp.append(Basic_lots)
+         temp.append(Total_lots)
+         temp.append(0)
+         temp.append('')
+     else:
+          
+         temp.append(week)
+         for i in Temp_lost:
+             temp.append(i)
+         temp.append(Budget)
+         temp.append(Basic_lots)
+         temp.append(Total_lots)
+         temp.append(0)
+         temp.append('')
+     data.append(temp)
+df = pd.DataFrame(data,columns=titlearr) 
+df.to_csv('test.csv',encoding='utf-8-sig',index=0)
